@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokedex</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="main">
+        <h2>Pokedex</h2>
+        <br/>
+        <input id="quantidade" style="width: 100%; height: 40px; border-color: rgb(172, 167, 165); padding-left: 10px;" type="text" name="quantidade" placeholder="Insira a quantidade de pokemons..."/>
+        <div class="pokemon-boxes"></div>
+    </div>
+    <script>
+        var quantidade = document.getElementById("quantidade");
+        quantidade.addEventListener("keyup", () => {
+            pegaPokemons(quantidade.value);
+        });
+        pegaPokemons(3);
+
+        function pegaPokemons(quantidade) {
+            fetch("https://pokeapi.co/api/v2/pokemon?limit=" + quantidade)
+                .then(response => response.json())
+                .then(allpokemon => {
+                    var pokemons = [];
+                    var promises = allpokemon.results.map(val => {
+                        return fetch(val.url)
+                            .then(response => response.json())
+                            .then(pokemonSingle => {
+                                var abilitiesPromises = pokemonSingle.abilities.map(ability => {
+                                    return fetch(ability.ability.url)
+                                        .then(response => response.json())
+                                        .then(abilityDetails => {
+                                            var effectEntry = abilityDetails.effect_entries.find(entry => entry.language.name === "en");
+                                            return {
+                                                name: ability.ability.name,
+                                                effect: effectEntry ? effectEntry.effect : 'No effect available in English.'
+                                            };
+                                        });
+                                });
+                                return Promise.all(abilitiesPromises)
+                                    .then(abilities => {
+                                        pokemons.push({
+                                            nome: pokemonSingle.name,
+                                            imagem: pokemonSingle.sprites.front_default,
+                                            habilidades: abilities
+                                        });
+                                    });
+                            });
+                    });
+
+                    Promise.all(promises).then(() => {
+                        var pokemonBoxes = document.querySelector(".pokemon-boxes");
+                        pokemonBoxes.innerHTML = "";
+                        pokemons.forEach(val => {
+                            pokemonBoxes.innerHTML += `
+                                <div class="pokemon-box">
+                                    <img src="${val.imagem}" />
+                                    <p>${val.nome}</p>
+                                    <p>Habilidades:</p>
+                                    <ul>
+                                        ${val.habilidades.map(habilidade `<li>${habilidade.name}: ${habilidade.effect}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            `;
+                        });
+                    }).catch(error => {
+                        console.error('Error fetching Pokémon details:', error);
+                    });
+                }).catch(error => {
+                    console.error('Error fetching Pokémon list:', error);
+                });
+        }
+    </script>
+</body>
+</html>
